@@ -1,18 +1,26 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.25;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
+import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v4.5.0/contracts/token/ERC20/IERC20.sol";
+import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v4.5.0/contracts/token/ERC20/extensions/ERC20Burnable.sol";
+import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v4.5.0/contracts/access/Ownable.sol";
 
+/**
+ * @title NepalPayToken
+ * @dev ERC20 token representing NepalPay Token (NPT)
+ */
 contract NepalPayToken is ERC20Burnable {
     constructor() ERC20("NepalPay Token", "NPT") {
         _mint(msg.sender, 1000000 * 10**decimals());
     }
 }
 
-contract NepalPay is Ownable(msg.sender) {
+/**
+ * @title NepalPay
+ * @dev Main contract for NepalPay application
+ * @custom:dev-run-script { "contract": "NepalPay", "target": "localhost", "script": "deploy" }
+ */
+contract NepalPay is Ownable {
     NepalPayToken public token;
     mapping(address => bool) public isAdmin;
     mapping(address => bool) public isModerator;
@@ -99,26 +107,10 @@ contract NepalPay is Ownable(msg.sender) {
         _;
     }
 
-    function addAdmin(address _admin) external onlyOwner {
-        isAdmin[_admin] = true;
-        emit AdminAdded(_admin);
-    }
-
-    function removeAdmin(address _admin) external onlyOwner {
-        isAdmin[_admin] = false;
-        emit AdminRemoved(_admin);
-    }
-
-    function addModerator(address _moderator) external onlyOwner {
-        isModerator[_moderator] = true;
-        emit ModeratorAdded(_moderator);
-    }
-
-    function removeModerator(address _moderator) external onlyOwner {
-        isModerator[_moderator] = false;
-        emit ModeratorRemoved(_moderator);
-    }
-
+    /**
+     * @dev Function to deposit tokens into the contract.
+     * @param _amount The amount of tokens to deposit.
+     */
     function depositTokens(uint256 _amount) external {
         require(token.balanceOf(msg.sender) >= _amount, "Insufficient balance");
         token.transferFrom(msg.sender, address(this), _amount);
@@ -126,12 +118,17 @@ contract NepalPay is Ownable(msg.sender) {
         emit TokensDeposited(msg.sender, _amount);
     }
 
+    /**
+     * @dev Function to withdraw tokens from the contract.
+     * @param _amount The amount of tokens to withdraw.
+     */
     function withdrawTokens(uint256 _amount) external {
         require(balance[msg.sender] >= _amount, "Insufficient balance");
         token.transfer(msg.sender, _amount);
         balance[msg.sender] -= _amount;
         emit TokensWithdrawn(msg.sender, _amount);
     }
+
 
     function updatePrice(uint256 _newPrice) external onlyAdmin {
         // Example of integrating with an external oracle
