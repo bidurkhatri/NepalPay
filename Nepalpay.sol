@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.25;
+pragma solidity ^0.8.0;
 
-import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v4.5.0/contracts/token/ERC20/IERC20.sol";
-import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v4.5.0/contracts/token/ERC20/extensions/ERC20Burnable.sol";
-import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v4.5.0/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
 contract NepalPayToken is ERC20Burnable {
     constructor() ERC20("NepalPay Token", "NPT") {
@@ -11,7 +12,7 @@ contract NepalPayToken is ERC20Burnable {
     }
 }
 
-contract NepalPay is Ownable {
+contract NepalPay is Ownable(msg.sender) {
     NepalPayToken public token;
     mapping(address => bool) public isAdmin;
     mapping(address => bool) public isModerator;
@@ -242,5 +243,4 @@ contract NepalPay is Ownable {
         emit TokensSent(msg.sender, _recipient, _amount, _description);
     }
 }
-
 
