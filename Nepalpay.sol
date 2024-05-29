@@ -6,16 +6,6 @@ import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v4.5.0/contr
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v4.5.0/contracts/access/Ownable.sol";
 
 /**
- * @title NepalPayToken
- * @dev ERC20 token representing NepalPay Token (NPT)
- */
-contract NepalPayToken is ERC20Burnable {
-    constructor() ERC20("NepalPay Token", "NPT") {
-        _mint(msg.sender, 1000000 * 10**decimals());
-    }
-}
-
-/**
  * @title NepalPay
  * @dev Main contract for NepalPay application
  */
