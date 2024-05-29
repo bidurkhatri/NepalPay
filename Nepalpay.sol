@@ -18,7 +18,6 @@ contract NepalPayToken is ERC20Burnable {
 /**
  * @title NepalPay
  * @dev Main contract for NepalPay application
- * @custom:dev-run-script { "contract": "NepalPay", "target": "localhost", "script": "deploy" }
  */
 contract NepalPay is Ownable {
     NepalPayToken public token;
@@ -48,7 +47,7 @@ contract NepalPay is Ownable {
         uint256 timestamp;
         bool active;
     }
-    
+
     uint256 public smallPaymentsLimit = 50; // 50 small payments allowed per day
     uint256 public smallPaymentAmount = 100; // Maximum amount considered as a small payment
     uint256 public transactionFeePercentage = 1; // 1% transaction fee for developer
@@ -129,22 +128,68 @@ contract NepalPay is Ownable {
         emit TokensWithdrawn(msg.sender, _amount);
     }
 
-
-    function updatePrice(uint256 _newPrice) external onlyAdmin {
-        // Example of integrating with an external oracle
-        // In a real-world scenario, you would use a decentralized oracle or trusted data provider
-        emit PriceUpdated(_newPrice);
+    // Function to send tokens with description
+    function sendTokens(address _recipient, uint256 _amount, string memory _description) external {
+        require(balance[msg.sender] >= _amount, "Insufficient balance");
+        balance[msg.sender] -= _amount;
+        balance[_recipient] += _amount;
+        emit TokensSent(msg.sender, _recipient, _amount, _description);
     }
 
-    function updateDebt(address _user, uint256 _amount) external onlyAdmin {
-        debt[_user] = _amount;
-        emit DebtUpdated(_user, _amount);
+    // Function to set username
+    function setUsername(string memory _username, string memory _role, string memory _country) external {
+        require(bytes(_username).length > 0, "Username cannot be empty");
+        require(!usernameReserved[_username], "Username is already reserved");
+        require(addressOfUsername[_username] == address(0), "Username already exists");
+        usernameOf[msg.sender] = _username;
+        addressOfUsername[_username] = msg.sender;
+        userRoles[msg.sender] = _role;
+        countryOf[msg.sender] = _country;
+        emit UsernameSet(msg.sender, _username, _role);
     }
 
-    function getUserDebt(address _user) external view returns (uint256) {
-        return debt[_user];
+    // Function to reserve a username
+    function reserveUsername(string memory _username) external onlyAdminOrModerator {
+        require(bytes(_username).length > 0, "Username cannot be empty");
+        usernameReserved[_username] = true;
     }
 
+    // Function to modify a username
+    function modifyUsername(address _user, string memory _newUsername, string memory _newRole) external onlyOwner {
+        require(bytes(_newUsername).length > 0, "Username cannot be empty");
+        require(!usernameReserved[_newUsername], "Username is already reserved");
+        require(addressOfUsername[_newUsername] == address(0), "Username already exists");
+        string memory oldUsername = usernameOf[_user];
+        usernameReserved[oldUsername] = false;
+        usernameOf[_user] = _newUsername;
+        addressOfUsername[_newUsername] = _user;
+        userRoles[_user] = _newRole;
+        emit UsernameModified(msg.sender, _user, _newUsername);
+    }
+
+    // Function to set international payment permissions
+    function setInternationalPaymentPermissions(address _user, bool _canReceive, bool _canSend) external onlyOwner {
+        canReceiveInternationalPayments[_user] = _canReceive;
+        canSendInternationalPayments[_user] = _canSend;
+    }
+
+    // Function to send tokens with international payment permissions
+    function sendTokensWithPermissions(address _recipient, uint256 _amount, string memory _description) external {
+        require(balance[msg.sender] >= _amount, "Insufficient balance");
+
+        if (!canSendInternationalPayments[msg.sender]) {
+            // Check if sender is allowed to make international payments
+            string memory senderCountry = countryOf[msg.sender];
+            string memory recipientCountry = countryOf[_recipient];
+            require(keccak256(abi.encodePacked(senderCountry)) == keccak256(abi.encodePacked("Nepal")), "Sender is not allowed to make international payments");
+            require(keccak256(abi.encodePacked(recipientCountry)) != keccak256(abi.encodePacked("Nepal")), "Recipient is from Nepal and cannot receive international payments");
+        }
+
+        token.transfer(_recipient, _amount);
+        emit TokensSent(msg.sender, _recipient, _amount, _description);
+    }
+
+    // Function to deposit collateral
     function addCollateral(uint256 _amount) external {
         require(token.balanceOf(msg.sender) >= _amount, "Insufficient balance");
         token.transferFrom(msg.sender, address(this), _amount);
@@ -152,6 +197,7 @@ contract NepalPay is Ownable {
         emit CollateralAdded(msg.sender, _amount);
     }
 
+    // Function to take a loan
     function takeLoan(uint256 _amount) external {
         require(collateral[msg.sender] >= _amount, "Insufficient collateral");
         require(debt[msg.sender] == 0, "User already has an outstanding loan");
@@ -167,6 +213,7 @@ contract NepalPay is Ownable {
         emit LoanTaken(msg.sender, _amount);
     }
 
+    // Function to repay a loan
     function repayLoan(uint256 _amount) external {
         require(debt[msg.sender] > 0, "User does not have an outstanding loan");
         require(balance[msg.sender] >= _amount, "Insufficient balance");
@@ -177,12 +224,14 @@ contract NepalPay is Ownable {
         emit LoanRepaid(msg.sender, _amount);
     }
 
+    // Function to send tips
     function sendTips(address _recipient, uint256 _amount, string memory _description) external {
         require(balance[msg.sender] >= _amount, "Insufficient balance");
         token.transfer(_recipient, _amount);
         emit TipsSent(msg.sender, _recipient, _amount, _description);
     }
 
+    // Function to make a business payment
     function makeBusinessPayment(string memory _recipientUsername, uint256 _amount, string memory _description) external {
         require(bytes(_recipientUsername).length > 0, "Recipient username cannot be empty");
         address _recipient = addressOfUsername[_recipientUsername];
@@ -192,52 +241,44 @@ contract NepalPay is Ownable {
         emit BusinessPayment(msg.sender, _recipientUsername, _amount, _description);
     }
 
-    function setUsername(string memory _username, string memory _role, string memory _country) external {
-        require(bytes(_username).length > 0, "Username cannot be empty");
-        require(!usernameReserved[_username], "Username is already reserved");
-        require(addressOfUsername[_username] == address(0), "Username already exists");
-        usernameOf[msg.sender] = _username;
-        addressOfUsername[_username] = msg.sender;
-        userRoles[msg.sender] = _role;
-        countryOf[msg.sender] = _country;
-        emit UsernameSet(msg.sender, _username, _role);
+    // Function to start a crowdfunding campaign
+    function startCampaign(bytes32 _campaignId, uint256 _targetAmount, string memory _description) external {
+        require(_targetAmount > 0, "Target amount must be greater than zero");
+        crowdfundingCampaigns[msg.sender][_campaignId] = _targetAmount;
+        emit CampaignStarted(msg.sender, _campaignId, _targetAmount, _description);
     }
 
-    function reserveUsername(string memory _username) external onlyAdminOrModerator {
-        require(bytes(_username).length > 0, "Username cannot be empty");
-        usernameReserved[_username] = true;
+    // Function to contribute to a crowdfunding campaign
+    function contribute(bytes32 _campaignId, uint256 _amount) external {
+        require(crowdfundingCampaigns[msg.sender][_campaignId] > 0, "Campaign does not exist");
+        require(_amount > 0, "Contribution amount must be greater than zero");
+        token.transferFrom(msg.sender, address(this), _amount);
+        crowdfundingCampaigns[msg.sender][_campaignId] -= _amount;
+        emit ContributionMade(msg.sender, _campaignId, _amount);
     }
 
-    function modifyUsername(address _user, string memory _newUsername, string memory _newRole) external onlyOwner {
-        require(bytes(_newUsername).length > 0, "Username cannot be empty");
-        require(!usernameReserved[_newUsername], "Username is already reserved");
-        require(addressOfUsername[_newUsername] == address(0), "Username already exists");
-        string memory oldUsername = usernameOf[_user];
-        usernameReserved[oldUsername] = false;
-        usernameOf[_user] = _newUsername;
-        addressOfUsername[_newUsername] = _user;
-        userRoles[_user] = _newRole;
-        emit UsernameModified(msg.sender, _user, _newUsername);
+    // Function to set a scheduled payment
+    function setScheduledPayment(bytes32 _paymentId, uint256 _amount, uint256 _timestamp) external {
+        require(_amount > 0, "Payment amount must be greater than zero");
+        require(_timestamp > block.timestamp, "Timestamp must be in the future");
+        scheduledPayments[msg.sender][_paymentId] = ScheduledPayment(_amount, _timestamp, true);
+        emit ScheduledPaymentSet(msg.sender, _amount, _timestamp);
     }
 
-    function setInternationalPaymentPermissions(address _user, bool _canReceive, bool _canSend) external onlyOwner {
-        canReceiveInternationalPayments[_user] = _canReceive;
-        canSendInternationalPayments[_user] = _canSend;
+    // Function to modify a scheduled payment
+    function modifyScheduledPayment(bytes32 _paymentId, uint256 _amount, uint256 _timestamp) external {
+        require(scheduledPayments[msg.sender][_paymentId].active, "Scheduled payment does not exist");
+        require(_amount > 0, "Payment amount must be greater than zero");
+        require(_timestamp > block.timestamp, "Timestamp must be in the future");
+        scheduledPayments[msg.sender][_paymentId].amount = _amount;
+        scheduledPayments[msg.sender][_paymentId].timestamp = _timestamp;
+        emit ScheduledPaymentModified(msg.sender, _amount, _timestamp);
     }
 
-    function sendTokens(address _recipient, uint256 _amount, string memory _description) external {
-        require(balance[msg.sender] >= _amount, "Insufficient balance");
-
-        if (!canSendInternationalPayments[msg.sender]) {
-            // Check if sender is allowed to make international payments
-            string memory senderCountry = countryOf[msg.sender];
-            string memory recipientCountry = countryOf[_recipient];
-            require(keccak256(abi.encodePacked(senderCountry)) == keccak256(abi.encodePacked("Nepal")), "Sender is not allowed to make international payments");
-            require(keccak256(abi.encodePacked(recipientCountry)) != keccak256(abi.encodePacked("Nepal")), "Recipient is from Nepal and cannot receive international payments");
-        }
-
-        token.transfer(_recipient, _amount);
-        emit TokensSent(msg.sender, _recipient, _amount, _description);
+    // Function to cancel a scheduled payment
+    function cancelScheduledPayment(bytes32 _paymentId) external {
+        require(scheduledPayments[msg.sender][_paymentId].active, "Scheduled payment does not exist");
+        scheduledPayments[msg.sender][_paymentId].active = false;
+        emit ScheduledPaymentCancelled(msg.sender);
     }
 }
-
