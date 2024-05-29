@@ -4,6 +4,7 @@ pragma solidity ^0.8.25;
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v4.5.0/contracts/token/ERC20/IERC20.sol";
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v4.5.0/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v4.5.0/contracts/access/Ownable.sol";
+import "./NepalPayToken.sol"; // Ensure this path is correct based on your directory structure
 
 /**
  * @title NepalPay
